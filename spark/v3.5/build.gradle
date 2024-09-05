@@ -107,6 +107,9 @@ project(":iceberg-spark:iceberg-spark-${sparkMajorVersion}_${scalaVersion}") {
     testImplementation project(path: ':iceberg-api', configuration: 'testArtifacts')
     testImplementation project(path: ':iceberg-core', configuration: 'testArtifacts')
     testImplementation project(path: ':iceberg-data', configuration: 'testArtifacts')
+
+    implementation files ('/Users/pawelkocinski/Desktop/projects/OpenLineage/integration/spark-extension-interfaces/build/libs/spark-extension-interfaces-1.22.0-SNAPSHOT.jar')
+
     testImplementation libs.sqlite.jdbc
     testImplementation libs.awaitility
   }
@@ -172,6 +175,7 @@ project(":iceberg-spark:iceberg-spark-extensions-${sparkMajorVersion}_${scalaVer
     testImplementation project(path: ':iceberg-core', configuration: 'testArtifacts')
     testImplementation project(path: ':iceberg-hive-metastore', configuration: 'testArtifacts')
     testImplementation project(path: ":iceberg-spark:iceberg-spark-${sparkMajorVersion}_${scalaVersion}", configuration: 'testArtifacts')
+    implementation files ('/Users/pawelkocinski/Desktop/projects/OpenLineage/integration/spark-extension-interfaces/build/libs/spark-extension-interfaces-1.22.0-SNAPSHOT.jar')
 
     testImplementation libs.avro.avro
     testImplementation libs.parquet.hadoop
@@ -259,6 +263,8 @@ project(":iceberg-spark:iceberg-spark-runtime-${sparkMajorVersion}_${scalaVersio
     integrationCompileOnly project(":iceberg-spark:iceberg-spark-extensions-${sparkMajorVersion}_${scalaVersion}")
     integrationCompileOnly project(":iceberg-spark:iceberg-spark-${sparkMajorVersion}_${scalaVersion}")
     integrationCompileOnly project(':iceberg-api')
+    integrationImplementation files ("/Users/pawelkocinski/Desktop/projects/OpenLineage/integration/spark/build/libs/openlineage-spark_2.12-1.22.0-SNAPSHOT.jar")
+    integrationImplementation("io.openlineage:spark-extension-entrypoint:1.0.0")
   }
 
   shadowJar {
@@ -294,8 +300,13 @@ project(":iceberg-spark:iceberg-spark-runtime-${sparkMajorVersion}_${scalaVersio
     relocate 'org.threeten.extra', 'org.apache.iceberg.shaded.org.threeten.extra'
     relocate 'org.roaringbitmap', 'org.apache.iceberg.shaded.org.roaringbitmap'
     relocate 'org.apache.datasketches', 'org.apache.iceberg.shaded.org.apache.datasketches'
+    relocate 'io.openlineage.spark.shade', 'org.apache.iceberg.shaded.io.openlineage.spark.shade'
 
     archiveClassifier.set(null)
+  }
+
+  tasks.withType(Copy).all {
+    duplicatesStrategy 'include'
   }
 
   task integrationTest(type: Test) {

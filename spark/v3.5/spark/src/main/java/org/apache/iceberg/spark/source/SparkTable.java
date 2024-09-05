@@ -21,7 +21,13 @@ package org.apache.iceberg.spark.source;
 import static org.apache.iceberg.TableProperties.CURRENT_SNAPSHOT_ID;
 import static org.apache.iceberg.TableProperties.FORMAT_VERSION;
 
+import io.openlineage.spark.shade.client.OpenLineage;
+import io.openlineage.spark.shade.client.utils.DatasetIdentifier;
+import io.openlineage.spark.shade.extension.v1.LineageTable;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.iceberg.BaseMetadataTable;
@@ -89,7 +95,7 @@ public class SparkTable
         SupportsWrite,
         SupportsDeleteV2,
         SupportsRowLevelOperations,
-        SupportsMetadataColumns {
+        SupportsMetadataColumns, LineageTable {
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkTable.class);
 
@@ -437,5 +443,39 @@ public class SparkTable
     }
 
     return options;
+  }
+
+  @Override
+  public DatasetIdentifier getLineageDatasetIdentifier(String sparkListenerEventName, OpenLineage openLineage) {
+    long snapshotId = icebergTable.currentSnapshot().snapshotId();
+    String operation = icebergTable.currentSnapshot().operation();
+    long versionNumber = icebergTable.currentSnapshot().sequenceNumber();
+    String manifestLocation = icebergTable.currentSnapshot().manifestListLocation();
+    long parentSnapshot = icebergTable.currentSnapshot().parentId();
+    long schemaId = icebergTable.currentSnapshot().schemaId();
+    long timestampMillis = icebergTable.currentSnapshot().timestampMillis();
+    Map<String, String> snapshotSummary = icebergTable.currentSnapshot().summary();
+
+    DatasetIdentifier identifier = new DatasetIdentifier(icebergTable.location(), "iceberg");
+
+    snapshotSummary.forEach(
+        (key, value) -> {
+          identifier.withSymlink(newSymLink(value, key));
+        });
+
+    identifier
+            .withSymlink(newSymLink(String.valueOf(snapshotId), "SNAPSHOT_ID"))
+            .withSymlink(newSymLink(String.valueOf(operation), "OPERATION"))
+            .withSymlink(newSymLink(String.valueOf(versionNumber), "VERSION_NUMBER"))
+            .withSymlink(newSymLink(String.valueOf(manifestLocation), "MANIFEST_LOCATION"))
+            .withSymlink(newSymLink(String.valueOf(parentSnapshot), "PARENT_SNAPSHOT"))
+            .withSymlink(newSymLink(String.valueOf(schemaId), "SCHEMA_ID"))
+            .withSymlink(newSymLink(String.valueOf(timestampMillis), "TIMESTAMP_MILLIS"));
+
+    return identifier;
+  }
+
+  private DatasetIdentifier.Symlink newSymLink(String key, String value) {
+    return new DatasetIdentifier.Symlink(key, value, DatasetIdentifier.SymlinkType.TABLE);
   }
 }
