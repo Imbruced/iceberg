@@ -23,9 +23,17 @@ import static org.apache.iceberg.TableProperties.FORMAT_VERSION;
 
 import io.openlineage.spark.shade.client.OpenLineage;
 import io.openlineage.spark.shade.client.utils.DatasetIdentifier;
-import io.openlineage.spark.shade.extension.v1.LineageTable;
+import io.openlineage.spark.shade.extension.v1.InputDatasetWithDelegate;
+import io.openlineage.spark.shade.extension.v1.InputDatasetWithFacets;
+import io.openlineage.spark.shade.extension.v1.InputDatasetWithIdentifier;
+import io.openlineage.spark.shade.extension.v1.InputLineageNode;
+import io.openlineage.spark.shade.extension.v1.OutputDatasetWithFacets;
+import io.openlineage.spark.shade.extension.v1.OutputDatasetWithIdentifier;
+import io.openlineage.spark.shade.extension.v1.OutputLineageNode;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -95,7 +103,7 @@ public class SparkTable
         SupportsWrite,
         SupportsDeleteV2,
         SupportsRowLevelOperations,
-        SupportsMetadataColumns, LineageTable {
+        SupportsMetadataColumns, InputLineageNode, OutputLineageNode {
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkTable.class);
 
@@ -445,37 +453,85 @@ public class SparkTable
     return options;
   }
 
-  @Override
+
   public DatasetIdentifier getLineageDatasetIdentifier(String sparkListenerEventName, OpenLineage openLineage) {
+    // leaving this here only in draft, I dont know which of those we can use
+    // in the summary we have a lot of metadata fields like
+    //"spark.app.id" -> "local-1724935865278"
+    //"added-data-files" -> "1"
+    //"added-records" -> "3"
+    //"added-files-size" -> "643"
+    //"changed-partition-count" -> "1"
+    //"total-records" -> "99"
+    //"total-files-size" -> "21219"
+    //"total-data-files" -> "33"
+    //"total-delete-files" -> "0"
+    //"total-position-deletes" -> "0"
+    //"total-equality-deletes" -> "0"
+    //"engine-version" -> "3.5.2"
+    //"app-id" -> "local-1724935865278"
+    //"engine-name" -> "spark"
+    //"iceberg-version" -> "Apache Iceberg 1.7.0-SNAPSHOT (commit ce772a6ecde5ea9f78a7e9145a34e74bdfb3277d)"
+
     long snapshotId = icebergTable.currentSnapshot().snapshotId();
     String operation = icebergTable.currentSnapshot().operation();
-    long versionNumber = icebergTable.currentSnapshot().sequenceNumber();
+
     String manifestLocation = icebergTable.currentSnapshot().manifestListLocation();
     long parentSnapshot = icebergTable.currentSnapshot().parentId();
     long schemaId = icebergTable.currentSnapshot().schemaId();
     long timestampMillis = icebergTable.currentSnapshot().timestampMillis();
     Map<String, String> snapshotSummary = icebergTable.currentSnapshot().summary();
 
-    DatasetIdentifier identifier = new DatasetIdentifier(icebergTable.location(), "iceberg");
-
-    snapshotSummary.forEach(
-        (key, value) -> {
-          identifier.withSymlink(newSymLink(value, key));
-        });
-
-    identifier
-            .withSymlink(newSymLink(String.valueOf(snapshotId), "SNAPSHOT_ID"))
-            .withSymlink(newSymLink(String.valueOf(operation), "OPERATION"))
-            .withSymlink(newSymLink(String.valueOf(versionNumber), "VERSION_NUMBER"))
-            .withSymlink(newSymLink(String.valueOf(manifestLocation), "MANIFEST_LOCATION"))
-            .withSymlink(newSymLink(String.valueOf(parentSnapshot), "PARENT_SNAPSHOT"))
-            .withSymlink(newSymLink(String.valueOf(schemaId), "SCHEMA_ID"))
-            .withSymlink(newSymLink(String.valueOf(timestampMillis), "TIMESTAMP_MILLIS"));
+    DatasetIdentifier identifier = new DatasetIdentifier(
+            icebergTable.location(),
+            "iceberg",
+            String.valueOf(icebergTable.currentSnapshot().sequenceNumber())
+    );
 
     return identifier;
   }
 
-  private DatasetIdentifier.Symlink newSymLink(String key, String value) {
-    return new DatasetIdentifier.Symlink(key, value, DatasetIdentifier.SymlinkType.TABLE);
+  @Override
+  public List<InputDatasetWithFacets> getInputs(String sparkListenerEventName, OpenLineage openLineage) {
+    DatasetIdentifier identifier = new DatasetIdentifier(
+            icebergTable.location(),
+            "iceberg",
+            String.valueOf(icebergTable.currentSnapshot().sequenceNumber())
+    );
+
+    return Collections.singletonList(
+            new InputDatasetWithIdentifier(
+                    identifier,
+                    openLineage.newDatasetFacetsBuilder().version(
+                            openLineage
+                                    .newDatasetVersionDatasetFacetBuilder()
+                                    .datasetVersion(String.valueOf(icebergTable.currentSnapshot().sequenceNumber()))
+                                    .build()
+                    ),
+                    openLineage.newInputDatasetInputFacetsBuilder()
+                    )
+            );
+  }
+
+  @Override
+  public List<OutputDatasetWithFacets> getOutputs(String sparkListenerEventName, OpenLineage openLineage) {
+    DatasetIdentifier identifier = new DatasetIdentifier(
+            icebergTable.location(),
+            "iceberg",
+            String.valueOf(icebergTable.currentSnapshot().sequenceNumber())
+    );
+
+    return Collections.singletonList(
+      new OutputDatasetWithIdentifier(
+                    identifier,
+                    openLineage.newDatasetFacetsBuilder().version(
+                            openLineage
+                                    .newDatasetVersionDatasetFacetBuilder()
+                                    .datasetVersion(String.valueOf(icebergTable.currentSnapshot().sequenceNumber()))
+                                    .build()
+                    ),
+                    openLineage.newOutputDatasetOutputFacetsBuilder()
+            )
+    );
   }
 }
