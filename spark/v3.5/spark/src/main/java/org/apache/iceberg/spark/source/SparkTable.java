@@ -23,7 +23,6 @@ import static org.apache.iceberg.TableProperties.FORMAT_VERSION;
 
 import io.openlineage.spark.shade.client.OpenLineage;
 import io.openlineage.spark.shade.client.utils.DatasetIdentifier;
-import io.openlineage.spark.shade.extension.v1.InputDatasetWithDelegate;
 import io.openlineage.spark.shade.extension.v1.InputDatasetWithFacets;
 import io.openlineage.spark.shade.extension.v1.InputDatasetWithIdentifier;
 import io.openlineage.spark.shade.extension.v1.InputLineageNode;
@@ -31,10 +30,7 @@ import io.openlineage.spark.shade.extension.v1.OutputDatasetWithFacets;
 import io.openlineage.spark.shade.extension.v1.OutputDatasetWithIdentifier;
 import io.openlineage.spark.shade.extension.v1.OutputLineageNode;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
